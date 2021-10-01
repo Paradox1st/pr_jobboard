@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "description": "Path rise take home",
   "main": "app.js",
+  "type": "module",
   "scripts": {
-    "start": "cross-env NODE_ENV=production node app",
-    "dev": "cross-env NODE_ENV=development nodemon app"
+    "start": "node app",
+    "dev": "nodemon app"
   },
   "author": "Minjae Park",
   "license": "ISC",
@@ -14,11 +15,11 @@
   },
   "dependencies": {
     "body-parser": "^1.19.0",
-    "connect-mongo": "^4.6.0",
     "cross-env": "^7.0.3",
-    "dot-env": "0.0.1",
+    "dotenv": "^10.0.0",
     "express": "^4.17.1",
     "fast-csv": "^4.3.6",
-    "mongoose": "^6.0.8"
+    "mongoose": "^6.0.8",
+    "node": "^16.10.0"
   }
 }
