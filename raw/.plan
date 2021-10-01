@@ -1,0 +1,21 @@
+resolving process
+1. "Job Board"
+  - find root url (in JSON), use regex then use dictionary
+2. "Company Website"
+  - url.contains(company_name.toLower())
+3. "Unknown" otherwise
+
+database structureasdf
+1. Job Boards
+  - import JSON
+2. Opportunities (listings)
+  - already have primary keys
+  - foreign key to Job Boards
+
+extra: unit testing
+use sample_job_source_resolution_data.csv
+give first 4 columns (ID, Job Title, Company Name, Job URL)
+then compare with Job Source columns
+
+extra: live link
+ajax call, status code not 200

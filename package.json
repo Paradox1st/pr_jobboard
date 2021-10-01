@@ -1,0 +1,23 @@
+{
+  "name": "pr_jobboard",
+  "version": "1.0.0",
+  "description": "Path rise take home",
+  "main": "app.js",
+  "scripts": {
+    "start": "cross-env NODE_ENV=production node app",
+    "dev": "cross-env NODE_ENV=development nodemon app"
+  },
+  "author": "Minjae Park",
+  "license": "ISC",
+  "devDependencies": {
+    "nodemon": "^2.0.13"
+  },
+  "dependencies": {
+    "body-parser": "^1.19.0",
+    "connect-mongo": "^4.6.0",
+    "cross-env": "^7.0.3",
+    "dot-env": "0.0.1",
+    "express": "^4.17.1",
+    "mongoose": "^6.0.8"
+  }
+}
