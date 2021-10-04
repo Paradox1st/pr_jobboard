@@ -1,17 +1,28 @@
+"use strict";
+
 // import modules
-import path from "path";
-import express from "express";
-import mongoose from "mongoose";
-import dotenv from "dotenv";
-// import { connectDB, initDB } from "./config/db";
+const path = require("path");
+const express = require("express");
+const mongoose = require("mongoose");
+const dotenv = require("dotenv");
+const { connectDB, initDB }  = require("./config/db");
+
+// load env config
+dotenv.config({ path: "./config/config.env" });
 
 // initialize express app
 const app = express();
 
+// connect to database
+connectDB();
+
+// configure port
+const PORT = process.env.PORT || 5000;
+
 // start listening
 app.listen(
-    3000,
-    console.log(
-        `Server running on http://localhost:3000`
-    )
+  PORT,
+  console.log(
+    `Server running in ${process.env.NODE_ENV} mode on http://localhost:${PORT}`
+  )
 );
