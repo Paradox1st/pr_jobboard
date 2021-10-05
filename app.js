@@ -8,11 +8,15 @@ const { initialize }  = require("./config/db");
 // load env config
 dotenv.config({ path: "./config/config.env" });
 
+// connect to database
+initialize();
+
 // initialize express app
 const app = express();
 
-// connect to database
-initialize();
+// routes
+app.use("/", require("./routes/index"));
+app.use("/jobboard", require("./routes/jobboard"));
 
 // configure port
 const PORT = process.env.PORT || 5000;
