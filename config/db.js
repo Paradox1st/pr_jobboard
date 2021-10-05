@@ -1,48 +1,110 @@
 "use strict";
 
 // import modules
-const mongoose = require("mongoose");
-const JobBoard = require("../models/jobboard");
-const Opportunity = require("../models/opportunity");
-const { readJSON, readCSV } = require("./raw");
+const fs = require("fs");
+const path = require("path");
+const mongodb = require("mongodb");
+const csvtojson = require("csvtojson");
 
-// try connecting to database
-async function connectDB() {
-  try {
-    const conn = await mongoose.connect(
-      process.env.MONGO_URI || "mongodb://127.0.0.1:27017/",
-      {
-        useNewUrlParser: true,
-        useUnifiedTopology: true
-      });
+// file names
+const csv = "./raw/job_opportunities.csv";
+const json = "./raw/jobBoards.json";
 
-    // initialize db
-    await initDB();
-  } catch (err) {
+async function initialize() {
+  // start database connection
+  var dbConn;
+  await mongodb.MongoClient.connect(process.env.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+  }).then((client) => {
+    console.log('DB connected');
+    dbConn = client.db("JobBoard");
+  }).catch((err) => {
     console.error(err);
-    process.exit(1);
-  }
-};
+  });
 
-// populate database
-// drops existing collection if any
-async function initDB() {
-  // clear collections
-  await JobBoard.deleteMany({});
-  await Opportunity.deleteMany({});
+  // clear documents in each collection
+  let jobboards = dbConn.collection('jobboards');
+  let opportunities = dbConn.collection('opportunities');
+  await jobboards.deleteMany({});
+  await opportunities.deleteMany({});
+  console.log("Collections cleared");
+
+  // initialize collections
+  initJobBoard(dbConn);
+}
+
+async function initJobBoard(dbConn) {
+  // read file specified by path
+  const file = fs.readFileSync(path.resolve(json), 'utf8');
 
   // add jobboards from json file
-  var jobboards = readJSON("./raw/jobBoards.json");
-  // add each jobboard into database
-  await jobboards.forEach(async job => {
-    let jb = new JobBoard(job);
-    await jb.save();
-  });
-  console.log("Job Board collection initialized");
+  var data = JSON.parse(file).job_boards;
 
-  // add opportunities to database
-  var opportunities = readCSV("./raw/job_opportunities.csv");
+  // add each jobboard into database
+  let collection = dbConn.collection('jobboards');
+  collection.insertMany(data, (err, result) => {
+    if (err) {
+      console.log(err)
+    };
+    if (result) {
+      console.log("Import JSON into database successful.");
+      // once database is updated, find ids of jobboards
+      collection.find({}).toArray((err, documents) => {
+        // match ids to root domains
+        let ids = {}
+        documents.forEach(jobboard => {
+          ids[jobboard.root_domain] = jobboard._id;
+        });
+        // opportunities can now refer to jobboards
+        initOpportunity(dbConn, ids);
+      });
+    }
+  });
+}
+
+async function initOpportunity(dbConn, domains) {
+  // regular expression to extract root domains
+  var regexp = /(\b\w+\.\w+)\//;
+
+  // list to hold oppotunity listing
+  var documents = [];
+  csvtojson().fromFile(csv).then(source => {
+    // Fetching the all data from each row
+    for (var i = 0; i < source.length; i++) {
+      // build opportunity document
+      var op = {
+        id: source[i]["ID (primary key)"],
+        title: source[i]["Job Title"],
+        company: source[i]["Company Name"],
+        url: source[i]["Job URL"]
+      };
+
+      // check for source
+      if (op.url && regexp.test(op.url) && regexp.exec(op.url)[1] in domains) {
+        // url from jobboard website
+        let root_domain = regexp.exec(op.url)[1];
+        op.source = 'Job Board';
+        op.jobboard = domains[root_domain];
+      } else if (op.url.includes(op.company.toLowerCase())) {
+        // url from company website
+        op.source = 'Company Website';
+      } else {
+        op.source = 'Unknown';
+      }
+
+      // add document to list
+      documents.push(op);
+    }
+
+    // add all opportunities to database
+    var collection = dbConn.collection('opportunities');
+    collection.insertMany(documents, (err, result) => {
+      if (err) console.log(err);
+      if (result) console.log("Import CSV into database successful.");
+    });
+  });
 }
 
 // export functions
-module.exports = { connectDB, initDB };
+module.exports = { initialize };
