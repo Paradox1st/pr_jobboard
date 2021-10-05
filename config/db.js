@@ -4,21 +4,23 @@
 const fs = require("fs");
 const path = require("path");
 const mongodb = require("mongodb");
-const csvtojson = require("csvtojson");
+const csv = require("csv-parser");
 
 // file names
-const csv = "./raw/job_opportunities.csv";
-const json = "./raw/jobBoards.json";
+const csv_file = "./raw/job_opportunities.csv";
+const json_file = "./raw/jobBoards.json";
 
 async function initialize() {
   // start database connection
+  var mongoClient;
   var dbConn;
   await mongodb.MongoClient.connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true
   }).then((client) => {
     console.log('DB connected');
-    dbConn = client.db("JobBoard");
+    mongoClient = client;
+    dbConn = mongoClient.db("JobBoard");
   }).catch((err) => {
     console.error(err);
   });
@@ -31,12 +33,12 @@ async function initialize() {
   console.log("Collections cleared");
 
   // initialize collections
-  initJobBoard(dbConn);
+  initJobBoard(mongoClient, dbConn);
 }
 
-async function initJobBoard(dbConn) {
+async function initJobBoard(client, dbConn) {
   // read file specified by path
-  const file = fs.readFileSync(path.resolve(json), 'utf8');
+  const file = fs.readFileSync(path.resolve(json_file), 'utf8');
 
   // add jobboards from json file
   var data = JSON.parse(file).job_boards;
@@ -57,53 +59,56 @@ async function initJobBoard(dbConn) {
           ids[jobboard.root_domain] = jobboard._id;
         });
         // opportunities can now refer to jobboards
-        initOpportunity(dbConn, ids);
+        initOpportunity(client, dbConn, ids);
       });
     }
   });
 }
 
-async function initOpportunity(dbConn, domains) {
+async function initOpportunity(client, dbConn, domains) {
   // regular expression to extract root domains
   var regexp = /(\b\w+\.\w+)\//;
 
   // list to hold oppotunity listing
   var documents = [];
-  csvtojson().fromFile(csv).then(source => {
-    // Fetching the all data from each row
-    for (var i = 0; i < source.length; i++) {
-      // build opportunity document
-      var op = {
-        id: source[i]["ID (primary key)"],
-        title: source[i]["Job Title"],
-        company: source[i]["Company Name"],
-        url: source[i]["Job URL"]
-      };
 
-      // check for source
-      if (op.url && regexp.test(op.url) && regexp.exec(op.url)[1] in domains) {
-        // url from jobboard website
-        let root_domain = regexp.exec(op.url)[1];
-        op.source = 'Job Board';
-        op.jobboard = domains[root_domain];
-      } else if (op.url.includes(op.company.toLowerCase())) {
-        // url from company website
-        op.source = 'Company Website';
-      } else {
-        op.source = 'Unknown';
+  fs.createReadStream(csv_file)
+    .pipe(csv({
+      mapHeaders: ({ header }) => {
+        let headers = {
+          "ID (primary key)": "id",
+          "Job Title": "title",
+          "Company Name": "company",
+          "Job URL": "url"
+        }
+        return headers[header];
       }
-
+    }))
+    .on('data', (row) => {
+      // check for source
+      if (row.url && regexp.test(row.url) && regexp.exec(row.url)[1] in domains) {
+        // url from jobboard website
+        let root_domain = regexp.exec(row.url)[1];
+        row.source = 'Job Board';
+        row.jobboard = domains[root_domain];
+      } else if (row.url.includes(row.company.toLowerCase())) {
+        // url from company website
+        row.source = 'Company Website';
+      } else {
+        row.source = 'Unknown';
+      }
       // add document to list
-      documents.push(op);
-    }
-
-    // add all opportunities to database
-    var collection = dbConn.collection('opportunities');
-    collection.insertMany(documents, (err, result) => {
-      if (err) console.log(err);
-      if (result) console.log("Import CSV into database successful.");
+      documents.push(row);
+    })
+    .on('end', () => {
+      // add all opportunities to database
+      var collection = dbConn.collection('opportunities');
+      collection.insertMany(documents, (err, result) => {
+        if (err) console.log(err);
+        if (result) console.log("Import CSV into database successful.");
+        client.close();
+      });
     });
-  });
 }
 
 // export functions

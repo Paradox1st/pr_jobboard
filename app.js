@@ -1,9 +1,7 @@
 "use strict";
 
 // import modules
-const path = require("path");
 const express = require("express");
-const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const { initialize }  = require("./config/db");
 
@@ -14,7 +12,6 @@ dotenv.config({ path: "./config/config.env" });
 const app = express();
 
 // connect to database
-// connectDB();
 initialize();
 
 // configure port
