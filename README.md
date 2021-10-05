@@ -11,8 +11,8 @@ Minjae Park
 ## Dependencies
 
 - Express: URL handling and routing
-- Mongoose: Interact with a MongoDB database
-  - connect-mongo: handle connections to MongoDB
+- mongodb: connection to MongoDB database
+- csvtojson: parse csv entries into json objects
 - Body-Parser: parse http requests only urls
 - dot-env: environment variables
 - cross-env: use environment variables across platforms
