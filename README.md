@@ -13,7 +13,7 @@ Minjae Park
 - `express`: URL handling and routing
   - `express-handlebars`: use handlebars template engine to render html templates
 - `mongodb`: Connection to MongoDB database
-- `csv-parser`: Parse csv entries into JSON objects / write JSON objects into csv files
+- `csv-parser`: Parse csv entries into JSON objects
 - `dot-env`: Environment variables
 - `cross-env`: Use environment variables across platforms
 

@@ -5,7 +5,7 @@ resolving process
   - url.contains(company_name.toLower())
 3. "Unknown" otherwise
 
-database structureasdf
+database structure
 1. Job Boards
   - import JSON
 2. Opportunities (listings)

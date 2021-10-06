@@ -35,9 +35,7 @@ async function initJobBoard() {
   // add each jobboard into database
   let collection = db.collection('jobboards');
   collection.insertMany(data, (err, result) => {
-    if (err) {
-      console.log(err)
-    };
+    if (err) console.log(err);
     if (result) {
       console.log("Import JSON into database successful.");
       // once database is updated, find ids of jobboards
@@ -76,6 +74,9 @@ async function initOpportunity(domains) {
       }
     }))
     .on('data', (row) => {
+      // format (no newlines)
+      row.title = row.title.replace(/[\r\n]/g,"");
+      row.company = row.company.replace(/[\r\n]/g,"");
       // check for source
       if (row.url && regexp.test(row.url) && regexp.exec(row.url)[1] in domains) {
         // url from jobboard website
@@ -94,18 +95,78 @@ async function initOpportunity(domains) {
     .on('end', () => {
       // add all opportunities to database
       var collection = db.collection('opportunities');
-      collection.insertMany(documents, (err, result) => {
+      collection.insertMany(documents, async (err, result) => {
         if (err) console.log(err);
         if (result) console.log("Import CSV into database successful.");
-        // close db connection when done
-        dbutils.close();
+
+        // write output files
+        writeJSON();
       });
     });
 }
 
+async function writeJSON() {
+  // for each jobsource, count opportunities
+  let sources = {};
+  // jobs associated with job boards
+  let jobboards = await db.collection('jobboards').find({});
+  let opportunities = db.collection('opportunities');
+  await jobboards.forEach(async jobboard => {
+    let count = await opportunities.find({ jobboard: jobboard._id }).count();
+    sources[jobboard.name] = count;
+  });
+  // job associated with company websites
+  let company_opportunities = await opportunities.find({ source: "Company Website" }).count();
+  sources["Company Website"] = company_opportunities;
+  // jobs with unknown sources
+  let unknown_opportunities = await opportunities.find({ source: "Unknown" }).count();
+  sources["Unknown"] = unknown_opportunities;
+
+  // write to json file
+  let data = JSON.stringify(sources, null, 4);
+  fs.writeFile("./raw/result.json", data, 'utf8', (err) => {
+    if (err) {
+      console.log(`Error writing JSON file: ${err}`);
+    } else {
+      console.log(`Output JSON file written successfully`);
+      
+      writeCSV();
+    }
+  });
+}
+
+async function writeCSV() {
+  // find all opportunities
+  let opportunities = await db.collection('opportunities').find({}, { sort: { id: 1 } }).toArray();
+  // write into string
+  const header = ["ID (primary key),Job Title,Company Name,Job URL,Job Source"];
+  const rows = opportunities.map((op) => {
+    if(op.company.includes(",") || op.company == ""){
+      op.company = '"'+op.company+'"';
+    }
+    if(op.url.includes(",") || op.url == ""){
+      op.url = '"'+op.url+'"';
+    }
+    return `${op.id},"${op.title}",${op.company},${op.url},${op.source}`;
+  });
+  const data = header.concat(rows).join("\n");
+  // write data into csv file
+  fs.writeFile("./raw/results.csv", data.toString(), (err) => {
+    if (err) {
+      console.log(`Error writing CSV file: ${err}`);
+    } else {
+      console.log(`Output CSV file written successfully`);
+
+      // wrap up
+      dbutils.close();
+      process.exit(0);
+    }
+  })
+}
+
 // connect and initialize
-dbutils.connect( function( err, client ) {
+dbutils.connect(async function (err, client) {
   if (err) console.log(err);
   db = dbutils.getDb();
   initialize();
-} );
+});
