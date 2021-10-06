@@ -1,0 +1,25 @@
+{{#if jobboards}}
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 gy-5">
+  {{#each jobboards}}
+  {{#with this}}
+  <div class="col mb-4">
+    <div class="card h-100 border-white">
+      <div class="row no-gutters">
+        <div class="col-md-4">
+          <img src={{ logo_file }} class="card-img m-2" alt="Job Board Logo">
+        </div>
+        <div class="col-md-8">
+          <div class="card-body">
+            <h3 class="card-title">{{ name }}</h3>
+            <h5 class="card-subtitle">{{ rating }}</h5>
+            <p class="card-text">{{ description }}</p>
+            <a href="/jobboard/{{ name }}" class="btn btn-primary stretched-link">See Opportunities</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {{/with}}
+  {{/each}}
+</div>
+{{/if}}

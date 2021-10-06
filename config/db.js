@@ -1,10 +1,14 @@
 "use strict";
 
 // import modules
+const dotenv = require("dotenv");
 const fs = require("fs");
 const path = require("path");
 const mongodb = require("mongodb");
 const csv = require("csv-parser");
+
+// load env config
+dotenv.config({ path: "./config/config.env" });
 
 // file names
 const csv_file = "./raw/job_opportunities.csv";
@@ -22,7 +26,7 @@ async function initialize() {
     mongoClient = client;
     dbConn = mongoClient.db("JobBoard");
   }).catch((err) => {
-    console.error(err);
+      console.error(err);
   });
 
   // clear documents in each collection
@@ -111,5 +115,5 @@ async function initOpportunity(client, dbConn, domains) {
     });
 }
 
-// export functions
-module.exports = { initialize };
+// run functions
+initialize();

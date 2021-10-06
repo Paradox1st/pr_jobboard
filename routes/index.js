@@ -23,12 +23,25 @@ router.get("/", async (req, res) => {
   try {
     let jobboards = dbConn.collection('jobboards');
     let cursor = jobboards.find({});
-    let count = await cursor.count();
-    let documents = await cursor.toArray();
-    res.send(documents);
+
+    // find all jobboards
+    await cursor.toArray((err, documents) => {
+      // wait for database to be loaded
+      if (documents.length == 0) {
+        // redirect to same url
+        res.redirect(req.url);
+      } else {
+        // build arguments
+        let args = {
+          title: "Job Board",
+          jobboards: documents
+        }
+        // render html template
+        res.render("index", args);
+      }
+    });
   } catch (err) {
     console.error(err);
-    // res.render("error/500");
   }
 });
 

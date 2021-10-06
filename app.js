@@ -3,16 +3,21 @@
 // import modules
 const express = require("express");
 const dotenv = require("dotenv");
-const { initialize }  = require("./config/db");
+const exphbs = require("express-handlebars");
 
 // load env config
 dotenv.config({ path: "./config/config.env" });
 
-// connect to database
-initialize();
-
 // initialize express app
 const app = express();
+
+// handlebars for html templates
+let hbs = exphbs.create({         // default layout file
+  defaultLayout: "main",
+  extname: ".hbs",
+});
+app.engine(".hbs", hbs.engine);   // handlebars use .hbs extension
+app.set("view engine", ".hbs");   // set handlebars for view engine
 
 // routes
 app.use("/", require("./routes/index"));
