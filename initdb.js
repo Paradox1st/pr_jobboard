@@ -75,8 +75,8 @@ async function initOpportunity(domains) {
     }))
     .on('data', (row) => {
       // format (no newlines)
-      row.title = row.title.replace(/[\r\n]/g,"");
-      row.company = row.company.replace(/[\r\n]/g,"");
+      row.title = row.title.replace(/[\r\n]/g," ").trim();
+      row.company = row.company.replace(/[\r\n]/g," ").trim();
       // check for source
       if (row.url && regexp.test(row.url) && regexp.exec(row.url)[1] in domains) {
         // url from jobboard website
