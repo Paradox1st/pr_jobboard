@@ -1,46 +1,31 @@
 "use strict";
 
 // import modules
-const dotenv = require("dotenv");
 const fs = require("fs");
 const path = require("path");
-const mongodb = require("mongodb");
 const csv = require("csv-parser");
-
-// load env config
-dotenv.config({ path: "./config/config.env" });
+const dbutils = require("./utils/db");
 
 // file names
 const csv_file = "./raw/job_opportunities.csv";
 const json_file = "./raw/jobBoards.json";
 
-async function initialize() {
-  // start database connection
-  var mongoClient;
-  var dbConn;
-  await mongodb.MongoClient.connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-  }).then((client) => {
-    console.log('DB connected');
-    mongoClient = client;
-    dbConn = mongoClient.db("JobBoard");
-  }).catch((err) => {
-      console.error(err);
-  });
+// db connection
+var db;
 
+async function initialize() {
   // clear documents in each collection
-  let jobboards = dbConn.collection('jobboards');
-  let opportunities = dbConn.collection('opportunities');
+  let jobboards = db.collection('jobboards');
+  let opportunities = db.collection('opportunities');
   await jobboards.deleteMany({});
   await opportunities.deleteMany({});
   console.log("Collections cleared");
 
   // initialize collections
-  initJobBoard(mongoClient, dbConn);
+  initJobBoard();
 }
 
-async function initJobBoard(client, dbConn) {
+async function initJobBoard() {
   // read file specified by path
   const file = fs.readFileSync(path.resolve(json_file), 'utf8');
 
@@ -48,7 +33,7 @@ async function initJobBoard(client, dbConn) {
   var data = JSON.parse(file).job_boards;
 
   // add each jobboard into database
-  let collection = dbConn.collection('jobboards');
+  let collection = db.collection('jobboards');
   collection.insertMany(data, (err, result) => {
     if (err) {
       console.log(err)
@@ -63,22 +48,24 @@ async function initJobBoard(client, dbConn) {
           ids[jobboard.root_domain] = jobboard._id;
         });
         // opportunities can now refer to jobboards
-        initOpportunity(client, dbConn, ids);
+        initOpportunity(ids);
       });
     }
   });
 }
 
-async function initOpportunity(client, dbConn, domains) {
+async function initOpportunity(domains) {
   // regular expression to extract root domains
   var regexp = /(\b\w+\.\w+)\//;
 
   // list to hold oppotunity listing
   var documents = [];
 
+  // read csv file
   fs.createReadStream(csv_file)
     .pipe(csv({
       mapHeaders: ({ header }) => {
+        // change headers to be shorter
         let headers = {
           "ID (primary key)": "id",
           "Job Title": "title",
@@ -106,14 +93,19 @@ async function initOpportunity(client, dbConn, domains) {
     })
     .on('end', () => {
       // add all opportunities to database
-      var collection = dbConn.collection('opportunities');
+      var collection = db.collection('opportunities');
       collection.insertMany(documents, (err, result) => {
         if (err) console.log(err);
         if (result) console.log("Import CSV into database successful.");
-        client.close();
+        // close db connection when done
+        dbutils.close();
       });
     });
 }
 
-// run functions
-initialize();
+// connect and initialize
+dbutils.connect( function( err, client ) {
+  if (err) console.log(err);
+  db = dbutils.getDb();
+  initialize();
+} );

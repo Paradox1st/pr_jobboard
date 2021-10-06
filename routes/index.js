@@ -3,46 +3,33 @@
 // import modules
 const express = require("express");
 const router = express.Router();
-const mongodb = require("mongodb");
+const dbutils = require("../utils/db");
 
 // database connection
-var mongoClient;
-var dbConn;
-mongodb.MongoClient.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-}).then((client) => {
-  mongoClient = client;
-  dbConn = mongoClient.db("JobBoard");
-}).catch((err) => {
-  console.error(err);
-});
+var db = dbutils.getDb();
 
 // index page
 router.get("/", async (req, res) => {
   try {
-    let jobboards = dbConn.collection('jobboards');
+    // set up database query
+    let jobboards = db.collection('jobboards');
     let cursor = jobboards.find({});
 
     // find all jobboards
     await cursor.toArray((err, documents) => {
-      // wait for database to be loaded
-      if (documents.length == 0) {
-        // redirect to same url
-        res.redirect(req.url);
-      } else {
-        // build arguments
-        let args = {
-          title: "Job Board",
-          jobboards: documents
-        }
-        // render html template
-        res.render("index", args);
+      // build arguments
+      let args = {
+        title: "Job Board",
+        jobboards: documents
       }
+
+      // render html template
+      res.render("index", args);
     });
   } catch (err) {
     console.error(err);
   }
 });
 
+// export to let app.js use these routes
 module.exports = router;
