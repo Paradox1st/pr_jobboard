@@ -8,6 +8,10 @@ Minjae Park
 - If job board cannot be identified, try identifying opportunity from a company website
 - If neither job board nor company website can be identified, label as "Unknown"
 
+## Demo Link
+
+Hosted on [Heroku](https://pathrise-jobboard.herokuapp.com/)
+
 ## Approach
 
 The `root_domain` property of the jobboard JSON file can help identify the job source as a job board.
@@ -31,6 +35,11 @@ The functions `mapDomains` and `findSource` contains the logic the above approac
 ### Unit Tests
 
 `initdb.test.js` contains the unit tests for the functions in `initdb.js`, specifically `findSource`
+
+The first test pulls from the `sample_job_source_resolution_data.csv` file and compares the `Job Source`
+column with the result from the `findSource` function. The test fails for this however, since the csv file
+identifies some opportunities as 'Company Website' when the company name shows up in the subdirectory (past
+the first `/` after the domain)
 
 ## Dependencies
 
