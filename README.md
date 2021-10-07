@@ -14,6 +14,8 @@ Hosted on [Heroku](https://pathrise-jobboard.herokuapp.com/)
 
 ## Approach
 
+Please refer to `initdb.js` for the start of the job source resolution logic.
+
 The `root_domain` property of the jobboard JSON file can help identify the job source as a job board.
 A key-value pair of `root_domain` and `name` are put into a dictionary, since dictionary (hash map)
 has a very low look up time, especially when keys are not numeric.
@@ -29,6 +31,11 @@ will only look at `example.com` part of the url, and not afterwards, since then 
 If both the checks do not pass, then the source will be identified as 'Unknown'.
 
 The functions `mapDomains` and `findSource` contains the logic the above approach in `initdb.js`.
+
+## Results
+
+The job source resolution csv file and number of opportunities in each job source can be found in
+`./raw/result.json` and `./raw/results.csv`
 
 ## Extra things
 
