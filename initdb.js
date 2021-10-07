@@ -25,42 +25,62 @@ async function initialize(callback) {
   callback();
 }
 
-async function initJobBoard(jsonfile, callback) {
-  // read file specified by path
-  const file = fs.readFileSync(path.resolve(jsonfile), 'utf8');
-
-  // add jobboards from json file
-  var data = JSON.parse(file).job_boards;
-
+async function initCollection(data, colname) {
   // add each jobboard into database
-  let collection = db.collection('jobboards');
-  collection.insertMany(data, (err, result) => {
-    if (err) console.log(err);
-    if (result) {
-      console.log("Import JSON into database successful.");
-      // once database is updated, find ids of jobboards
-      collection.find({}).toArray((err, documents) => {
-        // match ids to root domains
-        let domains = {}
-        documents.forEach(jobboard => {
-          domains[jobboard.root_domain] = jobboard.name
-        });
-        // further callback functions
-        callback(domains);
-      });
-    }
-  });
+  let collection = db.collection(colname);
+  return collection.insertMany(data);
 }
 
-async function initOpportunity(csvfile, domains, callback) {
+function mapDomains(jobboard_data) {
+  var domains = {}
+
+  // dictionary where
+  // key: root_domain
+  // value: job board name
+  for (let i = 0; i < jobboard_data.length; i++) {
+    domains[jobboard_data[i].root_domain] = jobboard_data[i].name;
+  }
+
+  return domains;
+}
+
+function findSource(domains, opportunities) {
   // regular expression to extract root domains
   var regexp = /(\b\w+\.\w+)\//;
 
+  for (let i = 0; i < opportunities.length; i++) {
+    let op = opportunities[i];
+    // check for source
+    if (op.url && regexp.test(op.url) && regexp.exec(op.url)[1] in domains) {
+      // url from jobboard website
+      let root_domain = regexp.exec(op.url)[1];
+      op.source = domains[root_domain];
+    } else if (op.url.includes(op.company.toLowerCase())) {
+      // url from company website
+      op.source = 'Company Website';
+    } else {
+      op.source = 'Unknown';
+    }
+  }
+
+  return opportunities;
+}
+
+async function readJSON(jsonfilepath) {
+  // read file specified by path
+  const file = fs.readFileSync(path.resolve(jsonfilepath), 'utf8');
+
+  // add jobboards from json file
+  return JSON.parse(file).job_boards;
+}
+
+async function readCSV(csvfilepath) {
   // list to hold oppotunity listing
-  var documents = [];
+  var rows = [];
 
   // read csv file
-  fs.createReadStream(csvfile)
+  return new Promise((resolve, reject) => {
+    fs.createReadStream(csvfilepath)
     .pipe(csv({
       mapHeaders: ({ header }) => {
         // change headers to be shorter
@@ -77,36 +97,19 @@ async function initOpportunity(csvfile, domains, callback) {
       // format (no newlines)
       row.title = row.title.replace(/[\r\n]/g, " ").trim();
       row.company = row.company.replace(/[\r\n]/g, " ").trim();
-      // check for source
-      if (row.url && regexp.test(row.url) && regexp.exec(row.url)[1] in domains) {
-        // url from jobboard website
-        let root_domain = regexp.exec(row.url)[1];
-        row.source = domains[root_domain];
-      } else if (row.url.includes(row.company.toLowerCase())) {
-        // url from company website
-        row.source = 'Company Website';
-      } else {
-        row.source = 'Unknown';
-      }
       // add document to list
-      documents.push(row);
+      rows.push(row);
     })
     .on('end', () => {
-      // add all opportunities to database
-      var collection = db.collection('opportunities');
-      collection.insertMany(documents, async (err, result) => {
-        if (err) console.log(err);
-        if (result) console.log("Import CSV into database successful.");
-
-        // further callback functions
-        callback();
-      });
+      resolve(rows);
     });
+  });
 }
 
 async function writeJSON() {
   // for each jobsource, count opportunities
   let sources = {};
+
   // jobs associated with job boards
   let jobboards = await db.collection('jobboards').find({}, { sort: { name: 1 } }).toArray();
   let opportunities = db.collection('opportunities');
@@ -114,9 +117,11 @@ async function writeJSON() {
     let count = await opportunities.find({ source: jobboard.name }).count();
     sources[jobboard.name] = count;
   });
+
   // job associated with company websites
   let company_opportunities = await opportunities.find({ source: "Company Website" }).count();
   sources["Company Website"] = company_opportunities;
+
   // jobs with unknown sources
   let unknown_opportunities = await opportunities.find({ source: "Unknown" }).count();
   sources["Unknown"] = unknown_opportunities;
@@ -139,6 +144,7 @@ async function writeJSON() {
 async function writeCSV() {
   // find all opportunities
   let opportunities = await db.collection('opportunities').find({}, { sort: { id: 1 } }).toArray();
+
   // write into string
   const header = ["ID (primary key),Job Title,Company Name,Job URL,Job Source"];
   const rows = opportunities.map((op) => {
@@ -151,6 +157,7 @@ async function writeCSV() {
     return `${op.id},"${op.title}",${op.company},${op.url},${op.source}`;
   });
   const data = header.concat(rows).join("\n");
+
   // write data into csv file
   return new Promise((resolve, reject) => {
     fs.writeFile("./raw/results.csv", data.toString(), 'utf8', (err) => {
@@ -169,17 +176,27 @@ async function writeCSV() {
 dbutils.connect(async function (err, client) {
   if (err) console.log(err);
   db = dbutils.getDb();
-  initialize(() => {
-    initJobBoard(json_file, (domains) => {
-      initOpportunity(csv_file, domains, () => {
-        // write to output files asynchronously
+  initialize(async () => {
+    // read data
+    let jobboard_data = await readJSON(json_file);
+    let opportunity_data = await readCSV(csv_file);
+    let domains = mapDomains(jobboard_data);
+
+    // find source
+    opportunity_data = findSource(domains, opportunity_data);
+
+    // initialize collections
+    Promise.all([initCollection(jobboard_data, 'jobboards'), initCollection(opportunity_data, 'opportunities')])
+      .then(() => {
+        console.log("Collections initialized successfully");
         Promise.all([writeCSV(), writeJSON()])
           .then(() => {
-            // close connection
-            client.close();
+            dbutils.close();
             process.exit(0);
-          });
+          })
       })
-    })
   });
 });
+
+// export functions (for unit testing)
+module.exports = { readJSON, readCSV, mapDomains, findSource }

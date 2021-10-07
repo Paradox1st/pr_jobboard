@@ -28,8 +28,12 @@ The functions `initJobBoard` and `initOpportunity` contains the logic the above 
   - `express-handlebars`: use handlebars template engine to render html templates
 - `mongodb`: Connection to MongoDB database
 - `csv-parser`: Parse csv entries into JSON objects
-- `dot-env`: Environment variables
-- `cross-env`: Use environment variables across platforms
+- `dot-env`: Environment variables in a file
+
+## Dev Dependencies
+
+- `nodemon`: automatically restart node when files are changed
+- `jest`: unit testing environment
 
 ## Build
 

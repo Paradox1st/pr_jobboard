@@ -4,9 +4,10 @@
   "description": "Path rise take home",
   "main": "app.js",
   "scripts": {
-    "start": "cross-env NODE_ENV=production node app",
-    "initdb": "cross-env NODE_ENV=development node initdb",
-    "dev": "cross-env NODE_ENV=development nodemon app"
+    "start": "node app",
+    "initdb": "node initdb",
+    "dev": "nodemon app",
+    "test": "jest"
   },
   "author": "Minjae Park",
   "license": "ISC",
@@ -15,7 +16,6 @@
     "nodemon": "^2.0.13"
   },
   "dependencies": {
-    "cross-env": "^7.0.3",
     "csv-parser": "^3.0.0",
     "dotenv": "^10.0.0",
     "express": "^4.17.1",
