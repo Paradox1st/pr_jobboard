@@ -31,14 +31,14 @@ async function initCollection(data, colname) {
   return collection.insertMany(data);
 }
 
-function mapDomains(jobboard_data) {
+function mapDomains(jobboards) {
   var domains = {}
 
   // dictionary where
   // key: root_domain
   // value: job board name
-  for (let i = 0; i < jobboard_data.length; i++) {
-    domains[jobboard_data[i].root_domain] = jobboard_data[i].name;
+  for (let i = 0; i < jobboards.length; i++) {
+    domains[jobboards[i].root_domain] = jobboards[i].name;
   }
 
   return domains;
@@ -51,11 +51,11 @@ function findSource(domains, opportunities) {
   for (let i = 0; i < opportunities.length; i++) {
     let op = opportunities[i];
     // check for source
-    if (op.url && regexp.test(op.url) && regexp.exec(op.url)[1] in domains) {
+    if (regexp.test(op.url) && regexp.exec(op.url)[1] in domains) {
       // url from jobboard website
       let root_domain = regexp.exec(op.url)[1];
       op.source = domains[root_domain];
-    } else if (op.url.includes(op.company.toLowerCase())) {
+    } else if (op.company != "Unknown" && op.url && companyInURL(op.url, op.company)) {
       // url from company website
       op.source = 'Company Website';
     } else {
@@ -64,6 +64,16 @@ function findSource(domains, opportunities) {
   }
 
   return opportunities;
+}
+
+function companyInURL(url, name){
+  let domain = /\/\/[^\/]+/
+  let full = /[\s\:&#!?+,\.\-]|(llc|inc|com|org)/gi;
+  let lazy = /[\s\:&#!?+,]|(llc|inc)/gi;
+  // get domain
+  url = (domain.exec(url) || [url])[0];
+  name = name.toLowerCase();
+  return url.includes(name.replace(full,"")) || url.includes(name.replace(lazy,""));
 }
 
 async function readJSON(jsonfilepath) {
@@ -148,13 +158,7 @@ async function writeCSV() {
   // write into string
   const header = ["ID (primary key),Job Title,Company Name,Job URL,Job Source"];
   const rows = opportunities.map((op) => {
-    if (op.company.includes(",") || op.company == "") {
-      op.company = '"' + op.company + '"';
-    }
-    if (op.url.includes(",") || op.url == "") {
-      op.url = '"' + op.url + '"';
-    }
-    return `${op.id},"${op.title}",${op.company},${op.url},${op.source}`;
+    return `${op.id},${wrapQuotes(op.title)},${wrapQuotes(op.company)},${wrapQuotes(op.url)},${op.source}`;
   });
   const data = header.concat(rows).join("\n");
 
@@ -172,31 +176,42 @@ async function writeCSV() {
   });
 }
 
-// connect and initialize
-dbutils.connect(async function (err, client) {
-  if (err) console.log(err);
-  db = dbutils.getDb();
-  initialize(async () => {
-    // read data
-    let jobboard_data = await readJSON(json_file);
-    let opportunity_data = await readCSV(csv_file);
-    let domains = mapDomains(jobboard_data);
+function wrapQuotes(string){
+  if(string.includes(",")){
+    return '"'+string+'"';
+  }else{
+    return string;
+  }
+}
 
-    // find source
-    opportunity_data = findSource(domains, opportunity_data);
-
-    // initialize collections
-    Promise.all([initCollection(jobboard_data, 'jobboards'), initCollection(opportunity_data, 'opportunities')])
-      .then(() => {
-        console.log("Collections initialized successfully");
-        Promise.all([writeCSV(), writeJSON()])
-          .then(() => {
-            dbutils.close();
-            process.exit(0);
-          })
-      })
+// if run directly from console (via `npm run initdb`)
+if (!module.parent) {
+  // connect and initialize
+  dbutils.connect(async function (err, client) {
+    if (err) console.log(err);
+    db = dbutils.getDb();
+    initialize(async () => {
+      // read data
+      let jobboard_data = await readJSON(json_file);
+      let opportunity_data = await readCSV(csv_file);
+      let domains = mapDomains(jobboard_data);
+  
+      // find source
+      opportunity_data = findSource(domains, opportunity_data);
+  
+      // initialize collections
+      Promise.all([initCollection(jobboard_data, 'jobboards'), initCollection(opportunity_data, 'opportunities')])
+        .then(() => {
+          console.log("Collections initialized successfully");
+          Promise.all([writeCSV(), writeJSON()])
+            .then(() => {
+              dbutils.close();
+              process.exit(0);
+            })
+        })
+    });
   });
-});
-
-// export functions (for unit testing)
-module.exports = { readJSON, readCSV, mapDomains, findSource }
+} else {
+  // export functions (for unit testing)
+  module.exports = { readJSON, readCSV, mapDomains, findSource }
+}

@@ -16,11 +16,21 @@ has a very low look up time, especially when keys are not numeric.
 
 On each opportunity, a regular expression match will be used to extract the root domains in the `url` field.
 This root domain can be looked up in the aforementioned dictionary to obtain the job board's `name`, which
-can now be filtered in the query for each job board.
+can now be filtered in the query for each job board. If not, it will be tested for company website.
 
-The functions `initJobBoard` and `initOpportunity` contains the logic the above approach in `initdb.js`.
+To identify the company webiste, the domain url (not the subdirectories!) are examined for the company name.
+For example, if the url is given as `example.com/sub/alg/web?queries=values`, then the `companyInURL` function
+will only look at `example.com` part of the url, and not afterwards, since then it may belong to another website.
+
+If both the checks do not pass, then the source will be identified as 'Unknown'.
+
+The functions `mapDomains` and `findSource` contains the logic the above approach in `initdb.js`.
 
 ## Extra things
+
+### Unit Tests
+
+`initdb.test.js` contains the unit tests for the functions in `initdb.js`, specifically `findSource`
 
 ## Dependencies
 
