@@ -15,7 +15,7 @@ router.get("/:jobboard", async (req, res) => {
     let jobboards = db.collection('jobboards');
     let collection = db.collection('opportunities');
     let jobboard = await jobboards.findOne({ name: req.params.jobboard });
-    let opportunities = collection.find({ jobboard: jobboard._id }, { sort: { id: 1 } });
+    let opportunities = collection.find({ source: jobboard.name }, { sort: { id: 1 } });
 
     // find all jobboards
     await opportunities.toArray((err, documents) => {

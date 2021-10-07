@@ -8,6 +8,20 @@ Minjae Park
 - If job board cannot be identified, try identifying opportunity from a company website
 - If neither job board nor company website can be identified, label as "Unknown"
 
+## Approach
+
+The `root_domain` property of the jobboard JSON file can help identify the job source as a job board.
+A key-value pair of `root_domain` and `name` are put into a dictionary, since dictionary (hash map)
+has a very low look up time, especially when keys are not numeric.
+
+On each opportunity, a regular expression match will be used to extract the root domains in the `url` field.
+This root domain can be looked up in the aforementioned dictionary to obtain the job board's `name`, which
+can now be filtered in the query for each job board.
+
+The functions `initJobBoard` and `initOpportunity` contains the logic the above approach in `initdb.js`.
+
+## Extra things
+
 ## Dependencies
 
 - `express`: URL handling and routing
